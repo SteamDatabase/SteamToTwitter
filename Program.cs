@@ -21,6 +21,8 @@ namespace SteamToTwitter
 
         public static void Main()
         {
+            Console.WriteLine("Starting...");
+
             Console.CancelKeyPress += delegate
             {
                 Console.WriteLine("Exiting...");
@@ -46,7 +48,7 @@ namespace SteamToTwitter
 
             ITokenRateLimits tokenLimits = TwitterToken.GetRateLimit();
 
-            Console.WriteLine("Remaning Twitter requests: {0} of {1}", tokenLimits.ApplicationRateLimitStatusLimit.Remaining, tokenLimits.ApplicationRateLimitStatusLimit.Limit);
+            Console.WriteLine("Remaining Twitter requests: {0} of {1}", tokenLimits.ApplicationRateLimitStatusLimit.Remaining, tokenLimits.ApplicationRateLimitStatusLimit.Limit);
 
             Timer.Elapsed += new System.Timers.ElapsedEventHandler(OnTimer);
             Timer.Interval = TimeSpan.FromMinutes(10).TotalMilliseconds;
@@ -57,17 +59,18 @@ namespace SteamToTwitter
             CallbackManager.Register(new Callback<SteamClient.DisconnectedCallback>(OnDisconnected));
             CallbackManager.Register(new Callback<SteamUser.LoggedOnCallback>(OnLoggedOn));
             CallbackManager.Register(new Callback<SteamUser.LoggedOffCallback>(OnLoggedOff));
+            CallbackManager.Register(new Callback<SteamUser.AccountInfoCallback>(OnAccountInfo));
             CallbackManager.Register(new Callback<SteamFriends.ClanStateCallback>(OnClanState));
 
             Client.Connect();
 
             while (IsRunning)
             {
-                CallbackManager.RunWaitCallbacks(TimeSpan.FromSeconds(1));
+                CallbackManager.RunWaitCallbacks(TimeSpan.FromSeconds(5));
             }
         }
 
-        private static bool PublishTweet(string tweet, string url)
+        private static void PublishTweet(string tweet, string url)
         {
             // 117 is a magical tweet length number
             if (tweet.Length > 117)
@@ -75,7 +78,14 @@ namespace SteamToTwitter
                 tweet = string.Format("{0}…", tweet.Substring(0, 116));
             }
 
-            return new Tweet(string.Format("{0} {1}", tweet, url)).Publish(TwitterToken);
+            try
+            {
+                new Tweet(string.Format("{0} {1}", tweet, url)).Publish(TwitterToken);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("EXCEPTION: {0}", e.Message);
+            }
         }
 
         private static void OnTimer(object sender, System.Timers.ElapsedEventArgs e)
@@ -159,6 +169,11 @@ namespace SteamToTwitter
             Console.WriteLine("Logged off from Steam");
         }
 
+        private static void OnAccountInfo(SteamUser.AccountInfoCallback callback)
+        {
+            Friends.SetPersonaState(EPersonaState.Busy);
+        }
+
         public static void OnClanState(SteamFriends.ClanStateCallback callback)
         {
             if (callback.Announcements.Count == 0)
@@ -177,9 +192,9 @@ namespace SteamToTwitter
             {
                 string message = string.IsNullOrEmpty(groupName) ? announcement.Headline : string.Format("[{0}] {1}", groupName, announcement.Headline);
 
-                PublishTweet(message, string.Format("http://steamcommunity.com/gid/{0}/announcements/detail/{1}", callback.ClanID, announcement.ID));
+                Console.WriteLine("Group Announcement: {0}", message);
 
-                Console.WriteLine("Group Announcement: {0} \"{1}\"", groupName, announcement.Headline);
+                PublishTweet(message, string.Format("http://steamcommunity.com/gid/{0}/announcements/detail/{1}", callback.ClanID, announcement.ID));
             }
         }
     }
