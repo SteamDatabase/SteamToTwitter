@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<configuration>
+	<appSettings>
+		<add key="token_ConsumerKey" value="" />
+		<add key="token_ConsumerSecret" value="" />
+		<add key="token_AccessToken" value="" />
+		<add key="token_AccessTokenSecret" value="" />
+		<add key="steam_Username" value="" />
+		<add key="steam_Password" value="" />
+	</appSettings>
+	<startup>
+		<supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.0" />
+	</startup>
+</configuration>
