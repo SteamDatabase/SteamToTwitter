@@ -21,11 +21,13 @@ namespace SteamToTwitter
 
         public static void Main()
         {
-            Console.WriteLine("Starting...");
+            Log.WriteInfo("Program", "Starting...");
 
             Console.CancelKeyPress += delegate
             {
-                Console.WriteLine("Exiting...");
+                Log.WriteInfo("Program", "Exiting...");
+
+                IsRunning = false;
 
                 try
                 {
@@ -33,10 +35,8 @@ namespace SteamToTwitter
                 }
                 catch
                 {
-                    Console.WriteLine("Failed to disconnect from Steam");
+                    Log.WriteError("Steam", "Failed to disconnect from Steam");
                 }
-
-                IsRunning = false;
             };
 
             TwitterToken = new Token(
@@ -48,7 +48,7 @@ namespace SteamToTwitter
 
             ITokenRateLimits tokenLimits = TwitterToken.GetRateLimit();
 
-            Console.WriteLine("Remaining Twitter requests: {0} of {1}", tokenLimits.ApplicationRateLimitStatusLimit.Remaining, tokenLimits.ApplicationRateLimitStatusLimit.Limit);
+            Log.WriteInfo("Twitter", "Remaining Twitter requests: {0} of {1}", tokenLimits.ApplicationRateLimitStatusLimit.Remaining, tokenLimits.ApplicationRateLimitStatusLimit.Limit);
 
             Timer.Elapsed += new System.Timers.ElapsedEventHandler(OnTimer);
             Timer.Interval = TimeSpan.FromMinutes(10).TotalMilliseconds;
@@ -78,13 +78,17 @@ namespace SteamToTwitter
                 tweet = string.Format("{0}…", tweet.Substring(0, 116));
             }
 
+            var full = string.Format("{0} {1}", tweet, url);
+
+            Log.WriteInfo("Twitter", "Tweeting \"{0}\"", full);
+
             try
             {
-                new Tweet(string.Format("{0} {1}", tweet, url)).Publish(TwitterToken);
+                new Tweet(full, TwitterToken).Publish();
             }
             catch (Exception e)
             {
-                Console.WriteLine("EXCEPTION: {0}", e.Message);
+                Log.WriteError("Twitter", "EXCEPTION: {0}", e.Message);
             }
         }
 
@@ -94,14 +98,14 @@ namespace SteamToTwitter
 
             if (timeDiff.TotalHours < 2)
             {
-                Console.WriteLine("We could tweet about Steam downtime, but 2 hours haven't passed since last tweet");
+                Log.WriteInfo("Downtime", "We could tweet about Steam downtime, but 2 hours haven't passed since last tweet");
 
                 return;
             }
 
             LastDowntimeTweet = DateTime.Now;
 
-            Console.WriteLine("Tweeting about Steam downtime...");
+            Log.WriteInfo("Downtime", "Tweeting about Steam downtime...");
 
             PublishTweet(string.Format("Steam appears to be down since {0}", DownSince.ToLongTimeString()), "http://steamstat.us/");
         }
@@ -110,14 +114,14 @@ namespace SteamToTwitter
         {
             if (callback.Result != EResult.OK)
             {
-                Console.WriteLine("Could not connect to Steam: {0}", callback.Result);
+                Log.WriteInfo("Steam", "Could not connect to Steam: {0}", callback.Result);
 
                 IsRunning = false;
 
                 return;
             }
 
-            Console.WriteLine("Connected to Steam, logging in...");
+            Log.WriteInfo("Steam", "Connected to Steam, logging in...");
 
             User.LogOn(new SteamUser.LogOnDetails
             {
@@ -133,15 +137,13 @@ namespace SteamToTwitter
                 return;
             }
 
+            Log.WriteInfo("Steam", "Disconnected from Steam. Retrying...");
+
             DownSince = DateTime.Now;
 
             Timer.Start();
 
-            const uint RETRY_DELAY = 15;
-
-            Console.WriteLine("Disconnected from Steam. Retrying in {0} seconds...", RETRY_DELAY);
-
-            Thread.Sleep(TimeSpan.FromSeconds(RETRY_DELAY));
+            Thread.Sleep(TimeSpan.FromSeconds(15));
 
             Client.Connect();
         }
@@ -150,7 +152,7 @@ namespace SteamToTwitter
         {
             if (callback.Result != EResult.OK)
             {
-                Console.WriteLine("Failed to login: {0}", callback.Result);
+                Log.WriteError("Steam", "Failed to login: {0}", callback.Result);
 
                 Thread.Sleep(TimeSpan.FromSeconds(2));
 
@@ -161,12 +163,12 @@ namespace SteamToTwitter
 
             string serverTime = callback.ServerTime.ToString();
 
-            Console.WriteLine("Logged in, current valve time is {0} UTC", serverTime);
+            Log.WriteInfo("Steam", "Logged in, current valve time is {0} UTC", serverTime);
         }
 
         private static void OnLoggedOff(SteamUser.LoggedOffCallback callback)
         {
-            Console.WriteLine("Logged off from Steam");
+            Log.WriteInfo("Steam", "Logged off from Steam");
         }
 
         private static void OnAccountInfo(SteamUser.AccountInfoCallback callback)
@@ -191,8 +193,6 @@ namespace SteamToTwitter
             foreach (var announcement in callback.Announcements)
             {
                 string message = string.IsNullOrEmpty(groupName) ? announcement.Headline : string.Format("[{0}] {1}", groupName, announcement.Headline);
-
-                Console.WriteLine("Group Announcement: {0}", message);
 
                 PublishTweet(message, string.Format("http://steamcommunity.com/gid/{0}/announcements/detail/{1}", callback.ClanID, announcement.ID));
             }
