@@ -5,19 +5,20 @@ using SteamKit2;
 using TweetinCore.Interfaces.TwitterToken;
 using Tweetinvi;
 using TwitterToken;
+using TweetinCore.Interfaces;
 
 namespace SteamToTwitter
 {
     internal static class MainClass
     {
-        private static bool IsRunning = true;
-        private static IToken TwitterToken;
-        private static DateTime LastDowntimeTweet;
-        private static DateTime DownSince;
         private static readonly System.Timers.Timer Timer = new System.Timers.Timer();
         private static readonly SteamClient Client = new SteamClient();
         private static readonly SteamUser User = Client.GetHandler<SteamUser>();
         private static readonly SteamFriends Friends = Client.GetHandler<SteamFriends>();
+        private static bool IsRunning = true;
+        private static IToken TwitterToken;
+        private static DateTime LastDowntimeTweet;
+        private static DateTime DownSince;
 
         public static void Main()
         {
@@ -27,8 +28,6 @@ namespace SteamToTwitter
             {
                 Log.WriteInfo("Program", "Exiting...");
 
-                IsRunning = false;
-
                 try
                 {
                     Client.Disconnect();
@@ -37,6 +36,8 @@ namespace SteamToTwitter
                 {
                     Log.WriteError("Steam", "Failed to disconnect from Steam");
                 }
+
+                IsRunning = false;
             };
 
             TwitterToken = new Token(
@@ -50,7 +51,7 @@ namespace SteamToTwitter
 
             Log.WriteInfo("Twitter", "Remaining Twitter requests: {0} of {1}", tokenLimits.ApplicationRateLimitStatusLimit.Remaining, tokenLimits.ApplicationRateLimitStatusLimit.Limit);
 
-            Timer.Elapsed += new System.Timers.ElapsedEventHandler(OnTimer);
+            Timer.Elapsed += OnTimer;
             Timer.Interval = TimeSpan.FromMinutes(10).TotalMilliseconds;
 
             var CallbackManager = new CallbackManager(Client);
@@ -70,25 +71,25 @@ namespace SteamToTwitter
             }
         }
 
-        private static void PublishTweet(string tweet, string url)
+        private static void PublishTweet(string message, string url)
         {
             // 117 is a magical tweet length number
-            if (tweet.Length > 117)
+            if (message.Length > 117)
             {
-                tweet = string.Format("{0}…", tweet.Substring(0, 116));
+                message = string.Format("{0}…", message.Substring(0, 116));
             }
 
-            var full = string.Format("{0} {1}", tweet, url);
-
-            Log.WriteInfo("Twitter", "Tweeting \"{0}\"", full);
+            Log.WriteInfo("Twitter", "Tweeting \"{0}\" - {1}", message, url);
 
             try
             {
-                new Tweet(full, TwitterToken).Publish();
+                ITweet tweet = new Tweet(string.Format("{0} {1}", message, url));
+
+                tweet.Publish(TwitterToken);
             }
             catch (Exception e)
             {
-                Log.WriteError("Twitter", "EXCEPTION: {0}", e.Message);
+                Log.WriteError("Twitter", "EXCEPTION: {0}\n{1}", e.Message, e.StackTrace);
             }
         }
 
@@ -139,7 +140,10 @@ namespace SteamToTwitter
 
             Log.WriteInfo("Steam", "Disconnected from Steam. Retrying...");
 
-            DownSince = DateTime.Now;
+            if (!Timer.Enabled)
+            {
+                DownSince = DateTime.Now;
+            }
 
             Timer.Start();
 
