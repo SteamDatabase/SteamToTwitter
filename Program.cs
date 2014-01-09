@@ -108,7 +108,7 @@ namespace SteamToTwitter
 
             Log.WriteInfo("Downtime", "Tweeting about Steam downtime...");
 
-            PublishTweet(string.Format("Steam appears to be down since {0}", DownSince.ToLongTimeString()), "http://steamstat.us/");
+            PublishTweet(string.Format("Steam appears to be down since {0} UTC", DownSince.ToLongTimeString()), "http://steamstat.us/");
         }
 
         private static void OnConnected(SteamClient.ConnectedCallback callback)
