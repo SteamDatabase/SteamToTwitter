@@ -20,6 +20,8 @@ namespace SteamToTwitter
         private static DateTime LastDowntimeTweet;
         private static DateTime DownSince;
 
+        const uint TWEET_AFTER = 10;
+
         public static void Main()
         {
             Log.WriteInfo("Program", "Starting...");
@@ -52,7 +54,7 @@ namespace SteamToTwitter
             Log.WriteInfo("Twitter", "Remaining Twitter requests: {0} of {1}", tokenLimits.ApplicationRateLimitStatusLimit.Remaining, tokenLimits.ApplicationRateLimitStatusLimit.Limit);
 
             Timer.Elapsed += OnTimer;
-            Timer.Interval = TimeSpan.FromMinutes(10).TotalMilliseconds;
+            Timer.Interval = TimeSpan.FromMinutes(TWEET_AFTER).TotalMilliseconds;
 
             var CallbackManager = new CallbackManager(Client);
 
@@ -89,7 +91,7 @@ namespace SteamToTwitter
             }
             catch (Exception e)
             {
-                Log.WriteError("Twitter", "EXCEPTION: {0}\n{1}", e.Message, e.StackTrace);
+                Log.WriteError("Twitter", "EXCEPTION: {0}", e.Message);
             }
         }
 
@@ -108,7 +110,7 @@ namespace SteamToTwitter
 
             Log.WriteInfo("Downtime", "Tweeting about Steam downtime...");
 
-            PublishTweet(string.Format("Steam appears to be down since {0} UTC", DownSince.ToLongTimeString()), "http://steamstat.us/");
+            PublishTweet(string.Format("Steam appears to be down since {0} UTC ({1} minutes ago)", DownSince.ToLongTimeString(), TWEET_AFTER), "http://steamstat.us/");
         }
 
         private static void OnConnected(SteamClient.ConnectedCallback callback)
@@ -143,10 +145,10 @@ namespace SteamToTwitter
             if (!Timer.Enabled)
             {
                 DownSince = DateTime.Now;
+
+                Timer.Start();
             }
-
-            Timer.Start();
-
+                
             Thread.Sleep(TimeSpan.FromSeconds(15));
 
             Client.Connect();
