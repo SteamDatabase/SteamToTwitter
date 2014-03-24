@@ -2,25 +2,23 @@ using System;
 using System.Configuration;
 using System.Threading;
 using SteamKit2;
-using TweetinCore.Interfaces.TwitterToken;
 using Tweetinvi;
-using TwitterToken;
-using TweetinCore.Interfaces;
 
 namespace SteamToTwitter
 {
     internal static class MainClass
     {
+        private const uint TWEET_AFTER = 10;
+        private const double LONGITUDE = -122.193798;
+        private const double LATITUDE = 47.614033;
+
         private static readonly System.Timers.Timer Timer = new System.Timers.Timer();
         private static readonly SteamClient Client = new SteamClient();
         private static readonly SteamUser User = Client.GetHandler<SteamUser>();
         private static readonly SteamFriends Friends = Client.GetHandler<SteamFriends>();
         private static bool IsRunning = true;
-        private static IToken TwitterToken;
         private static DateTime LastDowntimeTweet;
         private static DateTime DownSince;
-
-        const uint TWEET_AFTER = 10;
 
         public static void Main()
         {
@@ -32,6 +30,7 @@ namespace SteamToTwitter
 
                 try
                 {
+                    User.LogOff();
                     Client.Disconnect();
                 }
                 catch
@@ -42,14 +41,14 @@ namespace SteamToTwitter
                 IsRunning = false;
             };
 
-            TwitterToken = new Token(
+            TwitterCredentials.SetCredentials(
                 ConfigurationManager.AppSettings["token_AccessToken"],
                 ConfigurationManager.AppSettings["token_AccessTokenSecret"],
                 ConfigurationManager.AppSettings["token_ConsumerKey"],
                 ConfigurationManager.AppSettings["token_ConsumerSecret"]
             );
 
-            ITokenRateLimits tokenLimits = TwitterToken.GetRateLimit();
+            var tokenLimits = RateLimit.GetCurrentCredentialsRateLimits();
 
             Log.WriteInfo("Twitter", "Remaining Twitter requests: {0} of {1}", tokenLimits.ApplicationRateLimitStatusLimit.Remaining, tokenLimits.ApplicationRateLimitStatusLimit.Limit);
 
@@ -85,9 +84,11 @@ namespace SteamToTwitter
 
             try
             {
-                ITweet tweet = new Tweet(string.Format("{0} {1}", message, url));
+                var tweet = Tweet.CreateTweet(string.Format("{0} {1}", message, url));
 
-                tweet.Publish(TwitterToken);
+                tweet.PublishWithGeo(LONGITUDE, LATITUDE);
+
+                Log.WriteDebug("Twitter", "Tweet published: {0}", tweet.IsTweetPublished);
             }
             catch (Exception e)
             {
@@ -108,9 +109,11 @@ namespace SteamToTwitter
 
             LastDowntimeTweet = DateTime.Now;
 
+            var diff = LastDowntimeTweet.Subtract(DownSince);
+
             Log.WriteInfo("Downtime", "Tweeting about Steam downtime...");
 
-            PublishTweet(string.Format("Steam appears to be down since {0} UTC ({1} minutes ago)", DownSince.ToLongTimeString(), TWEET_AFTER), "http://steamstat.us/");
+            PublishTweet(string.Format("Steam appears to be down since {0} UTC ({1} minutes ago)", DownSince.ToLongTimeString(), diff.Minutes), "http://steamstat.us/");
         }
 
         private static void OnConnected(SteamClient.ConnectedCallback callback)
@@ -167,9 +170,7 @@ namespace SteamToTwitter
 
             Timer.Stop();
 
-            string serverTime = callback.ServerTime.ToString();
-
-            Log.WriteInfo("Steam", "Logged in, current valve time is {0} UTC", serverTime);
+            Log.WriteInfo("Steam", "Logged in, current valve time is {0} UTC", callback.ServerTime.ToString());
         }
 
         private static void OnLoggedOff(SteamUser.LoggedOffCallback callback)
@@ -189,7 +190,7 @@ namespace SteamToTwitter
                 return;
             }
 
-            string groupName = callback.ClanName;
+            var groupName = callback.ClanName;
 
             if (string.IsNullOrEmpty(groupName))
             {
@@ -198,7 +199,7 @@ namespace SteamToTwitter
 
             foreach (var announcement in callback.Announcements)
             {
-                string message = string.IsNullOrEmpty(groupName) ? announcement.Headline : string.Format("[{0}] {1}", groupName, announcement.Headline);
+                var message = string.IsNullOrEmpty(groupName) ? announcement.Headline : string.Format("{0}:\n{1}", groupName, announcement.Headline);
 
                 PublishTweet(message, string.Format("http://steamcommunity.com/gid/{0}/announcements/detail/{1}", callback.ClanID, announcement.ID));
             }
