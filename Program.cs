@@ -199,7 +199,12 @@ namespace SteamToTwitter
 
             foreach (var announcement in callback.Announcements)
             {
-                var message = string.IsNullOrEmpty(groupName) ? announcement.Headline : string.Format("{0}:\n{1}", groupName, announcement.Headline);
+                var message = announcement.Headline;
+
+                if (!string.IsNullOrEmpty(groupName) && !announcement.Headline.Contains(groupName))
+                {
+                    message = string.Format("{0}:\n{1}", groupName, announcement.Headline);
+                }
 
                 PublishTweet(message, string.Format("http://steamcommunity.com/gid/{0}/announcements/detail/{1}", callback.ClanID, announcement.ID));
             }
