@@ -201,7 +201,7 @@ namespace SteamToTwitter
             {
                 var message = announcement.Headline;
 
-                if (!string.IsNullOrEmpty(groupName) && !announcement.Headline.Replace("Steam", string.Empty).Trim().Contains(groupName))
+                if (!string.IsNullOrEmpty(groupName) && !announcement.Headline.Contains(groupName.Replace("Steam", string.Empty).Trim()))
                 {
                     message = string.Format("{0}:\n{1}", groupName, announcement.Headline);
                 }
