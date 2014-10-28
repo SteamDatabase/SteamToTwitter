@@ -1,16 +1,17 @@
 using System;
+using System.Collections.Specialized;
 using System.Configuration;
+using System.Net;
+using System.Text;
 using System.Threading;
 using SteamKit2;
-using Tweetinvi;
 
 namespace SteamToTwitter
 {
     internal static class MainClass
     {
+        private const string TWEET_URI = "https://api.twitter.com/1.1/statuses/update.json";
         private const uint TWEET_AFTER = 10;
-        private const double LONGITUDE = -122.193798;
-        private const double LATITUDE = 47.614033;
 
         private static readonly System.Timers.Timer Timer = new System.Timers.Timer();
         private static readonly SteamClient Client = new SteamClient();
@@ -19,6 +20,7 @@ namespace SteamToTwitter
         private static bool IsRunning = true;
         private static DateTime LastDowntimeTweet;
         private static DateTime DownSince;
+        private static TwitterAuthorization TwitterAuthorization;
 
         public static void Main()
         {
@@ -41,16 +43,12 @@ namespace SteamToTwitter
                 IsRunning = false;
             };
 
-            TwitterCredentials.SetCredentials(
+            TwitterAuthorization = new TwitterAuthorization(
                 ConfigurationManager.AppSettings["token_AccessToken"],
                 ConfigurationManager.AppSettings["token_AccessTokenSecret"],
                 ConfigurationManager.AppSettings["token_ConsumerKey"],
                 ConfigurationManager.AppSettings["token_ConsumerSecret"]
             );
-
-            var tokenLimits = RateLimit.GetCurrentCredentialsRateLimits();
-
-            Log.WriteInfo("Twitter", "Remaining Twitter requests: {0} of {1}", tokenLimits.ApplicationRateLimitStatusLimit.Remaining, tokenLimits.ApplicationRateLimitStatusLimit.Limit);
 
             Timer.Elapsed += OnTimer;
             Timer.Interval = TimeSpan.FromMinutes(TWEET_AFTER).TotalMilliseconds;
@@ -84,11 +82,19 @@ namespace SteamToTwitter
 
             try
             {
-                var tweet = Tweet.CreateTweet(string.Format("{0} {1}", message, url));
+                using(var webClient = new WebClient())
+                {
+                    var parameters = new NameValueCollection();
+                    parameters.Add("status", string.Format("{0} {1}", message, url));
 
-                tweet.PublishWithGeo(LONGITUDE, LATITUDE);
+                    var authHeader = TwitterAuthorization.GetHeader(TWEET_URI, parameters);
 
-                Log.WriteDebug("Twitter", "Tweet published: {0}", tweet.IsTweetPublished);
+                    webClient.Headers.Add(string.Format("Authorization: OAuth {0}", authHeader));  
+
+                    var responsebytes = webClient.UploadValues(TWEET_URI, "POST", parameters);
+
+                    Log.WriteDebug("Twitter", "Response: {0}", Encoding.UTF8.GetString(responsebytes));
+                }
             }
             catch (Exception e)
             {
