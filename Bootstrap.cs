@@ -8,18 +8,14 @@ using SteamKit2;
 
 namespace SteamToTwitter
 {
-    internal static class MainClass
+    internal static class Bootstrap
     {
         private const string TWEET_URI = "https://api.twitter.com/1.1/statuses/update.json";
-        private const uint TWEET_AFTER = 10;
 
-        private static readonly System.Timers.Timer Timer = new System.Timers.Timer();
         private static readonly SteamClient Client = new SteamClient();
         private static readonly SteamUser User = Client.GetHandler<SteamUser>();
         private static readonly SteamFriends Friends = Client.GetHandler<SteamFriends>();
         private static bool IsRunning = true;
-        private static DateTime LastDowntimeTweet;
-        private static DateTime DownSince;
         private static TwitterAuthorization TwitterAuthorization;
 
         public static void Main()
@@ -49,24 +45,21 @@ namespace SteamToTwitter
                 ConfigurationManager.AppSettings["token_ConsumerKey"],
                 ConfigurationManager.AppSettings["token_ConsumerSecret"]
             );
+                
+            var callbackManager = new CallbackManager(Client);
 
-            Timer.Elapsed += OnTimer;
-            Timer.Interval = TimeSpan.FromMinutes(TWEET_AFTER).TotalMilliseconds;
-
-            var CallbackManager = new CallbackManager(Client);
-
-            CallbackManager.Register(new Callback<SteamClient.ConnectedCallback>(OnConnected));
-            CallbackManager.Register(new Callback<SteamClient.DisconnectedCallback>(OnDisconnected));
-            CallbackManager.Register(new Callback<SteamUser.LoggedOnCallback>(OnLoggedOn));
-            CallbackManager.Register(new Callback<SteamUser.LoggedOffCallback>(OnLoggedOff));
-            CallbackManager.Register(new Callback<SteamUser.AccountInfoCallback>(OnAccountInfo));
-            CallbackManager.Register(new Callback<SteamFriends.ClanStateCallback>(OnClanState));
+            callbackManager.Register(new Callback<SteamClient.ConnectedCallback>(OnConnected));
+            callbackManager.Register(new Callback<SteamClient.DisconnectedCallback>(OnDisconnected));
+            callbackManager.Register(new Callback<SteamUser.LoggedOnCallback>(OnLoggedOn));
+            callbackManager.Register(new Callback<SteamUser.LoggedOffCallback>(OnLoggedOff));
+            callbackManager.Register(new Callback<SteamUser.AccountInfoCallback>(OnAccountInfo));
+            callbackManager.Register(new Callback<SteamFriends.ClanStateCallback>(OnClanState));
 
             Client.Connect();
 
             while (IsRunning)
             {
-                CallbackManager.RunWaitCallbacks(TimeSpan.FromSeconds(5));
+                callbackManager.RunWaitCallbacks(TimeSpan.FromSeconds(5));
             }
         }
 
@@ -92,34 +85,23 @@ namespace SteamToTwitter
                     webClient.Headers.Add(string.Format("Authorization: OAuth {0}", authHeader));  
 
                     var responsebytes = webClient.UploadValues(TWEET_URI, "POST", parameters);
+                    var response = Encoding.UTF8.GetString(responsebytes);
 
-                    Log.WriteDebug("Twitter", "Response: {0}", Encoding.UTF8.GetString(responsebytes));
+                    // Parsing JSON is for silly people! (it's for debugging purposes only anyway
+                    if(response.Contains("\"created_at\""))
+                    {
+                        Log.WriteDebug("Twitter", "Tweet sent");
+                    }
+                    else
+                    {
+                        Log.WriteDebug("Twitter", "Response: {0}", response);
+                    }
                 }
             }
             catch (Exception e)
             {
                 Log.WriteError("Twitter", "EXCEPTION: {0}", e.Message);
             }
-        }
-
-        private static void OnTimer(object sender, System.Timers.ElapsedEventArgs e)
-        {
-            TimeSpan timeDiff = DateTime.Now - LastDowntimeTweet;
-
-            if (timeDiff.TotalHours < 2)
-            {
-                Log.WriteInfo("Downtime", "We could tweet about Steam downtime, but 2 hours haven't passed since last tweet");
-
-                return;
-            }
-
-            LastDowntimeTweet = DateTime.Now;
-
-            var diff = LastDowntimeTweet.Subtract(DownSince);
-
-            Log.WriteInfo("Downtime", "Tweeting about Steam downtime...");
-
-            PublishTweet(string.Format("Steam appears to be down since {0} UTC ({1} minutes ago)", DownSince.ToLongTimeString(), diff.Minutes), "http://steamstat.us/");
         }
 
         private static void OnConnected(SteamClient.ConnectedCallback callback)
@@ -151,13 +133,6 @@ namespace SteamToTwitter
 
             Log.WriteInfo("Steam", "Disconnected from Steam. Retrying...");
 
-            if (!Timer.Enabled)
-            {
-                DownSince = DateTime.Now;
-
-                Timer.Start();
-            }
-                
             Thread.Sleep(TimeSpan.FromSeconds(15));
 
             Client.Connect();
@@ -173,9 +148,7 @@ namespace SteamToTwitter
 
                 return;
             }
-
-            Timer.Stop();
-
+                
             Log.WriteInfo("Steam", "Logged in, current valve time is {0} UTC", callback.ServerTime.ToString());
         }
 
@@ -205,7 +178,7 @@ namespace SteamToTwitter
 
             foreach (var announcement in callback.Announcements)
             {
-                var message = announcement.Headline;
+                var message = announcement.Headline.Trim();
 
                 if (!string.IsNullOrEmpty(groupName) && !announcement.Headline.Contains(groupName.Replace("Steam", string.Empty).Trim()))
                 {
