@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Specialized;
 using System.Configuration;
+using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading;
@@ -45,15 +46,17 @@ namespace SteamToTwitter
                 ConfigurationManager.AppSettings["token_ConsumerKey"],
                 ConfigurationManager.AppSettings["token_ConsumerSecret"]
             );
-                
+
+            VerifyTwitter();
+
             var callbackManager = new CallbackManager(Client);
 
-            callbackManager.Register(new Callback<SteamClient.ConnectedCallback>(OnConnected));
-            callbackManager.Register(new Callback<SteamClient.DisconnectedCallback>(OnDisconnected));
-            callbackManager.Register(new Callback<SteamUser.LoggedOnCallback>(OnLoggedOn));
-            callbackManager.Register(new Callback<SteamUser.LoggedOffCallback>(OnLoggedOff));
-            callbackManager.Register(new Callback<SteamUser.AccountInfoCallback>(OnAccountInfo));
-            callbackManager.Register(new Callback<SteamFriends.ClanStateCallback>(OnClanState));
+            callbackManager.Subscribe<SteamClient.ConnectedCallback>(OnConnected);
+            callbackManager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
+            callbackManager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
+            callbackManager.Subscribe<SteamUser.LoggedOffCallback>(OnLoggedOff);
+            callbackManager.Subscribe<SteamUser.AccountInfoCallback>(OnAccountInfo);
+            callbackManager.Subscribe<SteamFriends.ClanStateCallback>(OnClanState);
 
             Client.Connect();
 
@@ -63,7 +66,28 @@ namespace SteamToTwitter
             }
         }
 
-        private static void PublishTweet(string message, string url)
+        private static void VerifyTwitter()
+        {
+            using (var webClient = new WebClient())
+            {
+                const string url = "https://api.twitter.com/1.1/account/verify_credentials.json";
+                var parameters = new NameValueCollection();
+                parameters.Add("skip_status", "true");
+                parameters.Add("include_entities", "false");
+                parameters.Add("include_email", "false");
+
+                var authHeader = TwitterAuthorization.GetHeader(url, "GET", parameters);
+
+                webClient.Headers.Add(string.Format("Authorization: OAuth {0}", authHeader));
+
+                var responsebytes = webClient.DownloadData(url + "?" + string.Join("&", parameters.AllKeys.Select(a => a + "=" + parameters[a])));
+                var response = Encoding.UTF8.GetString(responsebytes);
+
+                Log.WriteDebug("Twitter", "{0}", response);
+            }
+        }
+
+        private static bool PublishTweet(string message, string url)
         {
             // 117 is a magical tweet length number
             if (message.Length > 117)
@@ -75,22 +99,24 @@ namespace SteamToTwitter
 
             try
             {
-                using(var webClient = new WebClient())
+                using (var webClient = new WebClient())
                 {
                     var parameters = new NameValueCollection();
                     parameters.Add("status", string.Format("{0} {1}", message, url));
 
-                    var authHeader = TwitterAuthorization.GetHeader(TWEET_URI, parameters);
+                    var authHeader = TwitterAuthorization.GetHeader(TWEET_URI, "POST", parameters);
 
-                    webClient.Headers.Add(string.Format("Authorization: OAuth {0}", authHeader));  
+                    webClient.Headers.Add(string.Format("Authorization: OAuth {0}", authHeader));
 
                     var responsebytes = webClient.UploadValues(TWEET_URI, "POST", parameters);
                     var response = Encoding.UTF8.GetString(responsebytes);
 
                     // Parsing JSON is for silly people! (it's for debugging purposes only anyway
-                    if(response.Contains("\"created_at\""))
+                    if (response.Contains("\"created_at\""))
                     {
                         Log.WriteDebug("Twitter", "Tweet sent");
+
+                        return true;
                     }
                     else
                     {
@@ -102,6 +128,8 @@ namespace SteamToTwitter
             {
                 Log.WriteError("Twitter", "EXCEPTION: {0}", e.Message);
             }
+
+            return false;
         }
 
         private static void OnConnected(SteamClient.ConnectedCallback callback)
@@ -148,7 +176,7 @@ namespace SteamToTwitter
 
                 return;
             }
-                
+
             Log.WriteInfo("Steam", "Logged in, current valve time is {0} UTC", callback.ServerTime.ToString());
         }
 
@@ -185,7 +213,13 @@ namespace SteamToTwitter
                     message = string.Format("{0}:\n{1}", groupName, announcement.Headline);
                 }
 
-                PublishTweet(message, string.Format("http://steamcommunity.com/gid/{0}/announcements/detail/{1}", callback.ClanID, announcement.ID));
+                var url = string.Format("http://steamcommunity.com/gid/{0}/announcements/detail/{1}", callback.ClanID, announcement.ID);
+
+                // Try to publish tweet twice if first time fails
+                if (!PublishTweet(message, url))
+                {
+                    PublishTweet(message, url);
+                }
             }
         }
     }

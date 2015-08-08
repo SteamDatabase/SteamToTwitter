@@ -23,7 +23,7 @@ namespace SteamToTwitter
             AccessTokenSecret = b;
         }
 
-        public string GetHeader(string uri, NameValueCollection parameters)
+        public string GetHeader(string uri, string type, NameValueCollection parameters)
         {
             var nonce = Guid.NewGuid().ToString();
             var timestamp = Convert.ToInt64((DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds).ToString(CultureInfo.InvariantCulture);
@@ -53,7 +53,7 @@ namespace SteamToTwitter
                                          select Uri.EscapeDataString(k) + "=" +
                                          Uri.EscapeDataString(signingParameters[k]));
 
-            var stringToSign = string.Join("&", new[] { "POST", baseUrl, parameterString }.Select(Uri.EscapeDataString));
+            var stringToSign = string.Join("&", new[] { type, baseUrl, parameterString }.Select(Uri.EscapeDataString));
             var signingKey = ApiSecret + "&" + AccessTokenSecret;
             var signature = Convert.ToBase64String(new HMACSHA1(Encoding.ASCII.GetBytes(signingKey)).ComputeHash(Encoding.ASCII.GetBytes(stringToSign)));
 
