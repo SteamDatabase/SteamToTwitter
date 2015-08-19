@@ -36,7 +36,7 @@ namespace SteamToTwitter
         {
             string logLine = string.Format(
                 "{0} [{1}] {2}: {3}",
-                DateTime.Now.ToLongTimeString(),
+                DateTime.Now.ToString("R"),
                 category.ToString().ToUpper(),
                 component,
                 string.Format(format, args)

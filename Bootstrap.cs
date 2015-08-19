@@ -156,6 +156,8 @@ namespace SteamToTwitter
         {
             if (!IsRunning)
             {
+                Log.WriteInfo("Steam", "Shutting down...");
+
                 return;
             }
 
