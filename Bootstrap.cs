@@ -62,21 +62,6 @@ namespace SteamToTwitter
             }
         }
 
-        private static bool PublishTweet(string message, string url)
-        {
-            // 117 is a magical tweet length number
-            if (message.Length > 117)
-            {
-                message = string.Format("{0}…", message.Substring(0, 116));
-            }
-
-            Log.WriteInfo("Twitter", "Tweeting \"{0}\" - {1}", message, url);
-
-            Twitter.UpdateStatus(string.Format("{0} {1}", message, url));
-
-            return false;
-        }
-
         private static void OnConnected(SteamClient.ConnectedCallback callback)
         {
             if (callback.Result != EResult.OK)
@@ -160,9 +145,17 @@ namespace SteamToTwitter
                     message = string.Format("{0}:\n{1}", groupName, announcement.Headline);
                 }
 
+                // 117 is a magical tweet length number
+                if (message.Length > 117)
+                {
+                    message = string.Format("{0}…", message.Substring(0, 116));
+                }
+
                 var url = string.Format("http://steamcommunity.com/gid/{0}/announcements/detail/{1}", callback.ClanID, announcement.ID);
 
-                PublishTweet(message, url);
+                Log.WriteInfo("Twitter", "Tweeting \"{0}\" - {1}", message, url);
+
+                Twitter.UpdateStatus(string.Format("{0} {1}", message, url));
             }
         }
     }
