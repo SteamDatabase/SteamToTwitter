@@ -16,11 +16,11 @@ namespace SteamToTwitter
 
         public static void Main()
         {
-            Log.WriteInfo("Program", "Starting...");
+            Log("Starting...");
 
             Console.CancelKeyPress += delegate
             {
-                Log.WriteInfo("Program", "Exiting...");
+                Log("Exiting...");
 
                 try
                 {
@@ -29,7 +29,7 @@ namespace SteamToTwitter
                 }
                 catch
                 {
-                    Log.WriteError("Steam", "Failed to disconnect from Steam");
+                    Log("Failed to disconnect from Steam");
                 }
 
                 IsRunning = false;
@@ -66,14 +66,14 @@ namespace SteamToTwitter
         {
             if (callback.Result != EResult.OK)
             {
-                Log.WriteInfo("Steam", "Could not connect to Steam: {0}", callback.Result);
+                Log("Could not connect to Steam: {0}", callback.Result);
 
                 IsRunning = false;
 
                 return;
             }
 
-            Log.WriteInfo("Steam", "Connected to Steam, logging in...");
+            Log("Connected to Steam, logging in...");
 
             User.LogOn(new SteamUser.LogOnDetails
             {
@@ -86,12 +86,12 @@ namespace SteamToTwitter
         {
             if (!IsRunning)
             {
-                Log.WriteInfo("Steam", "Shutting down...");
+                Log("Shutting down...");
 
                 return;
             }
 
-            Log.WriteInfo("Steam", "Disconnected from Steam. Retrying...");
+            Log("Disconnected from Steam. Retrying...");
 
             Thread.Sleep(TimeSpan.FromSeconds(15));
 
@@ -102,19 +102,19 @@ namespace SteamToTwitter
         {
             if (callback.Result != EResult.OK)
             {
-                Log.WriteError("Steam", "Failed to login: {0}", callback.Result);
+                Log("Failed to login: {0}", callback.Result);
 
                 Thread.Sleep(TimeSpan.FromSeconds(2));
 
                 return;
             }
 
-            Log.WriteInfo("Steam", "Logged in, current valve time is {0} UTC", callback.ServerTime.ToString());
+            Log("Logged in, current valve time is {0} UTC", callback.ServerTime.ToString());
         }
 
         private static void OnLoggedOff(SteamUser.LoggedOffCallback callback)
         {
-            Log.WriteInfo("Steam", "Logged off from Steam");
+            Log("Logged off from Steam");
         }
 
         private static void OnAccountInfo(SteamUser.AccountInfoCallback callback)
@@ -153,10 +153,15 @@ namespace SteamToTwitter
 
                 var url = string.Format("http://steamcommunity.com/gid/{0}/announcements/detail/{1}", callback.ClanID, announcement.ID);
 
-                Log.WriteInfo("Twitter", "Tweeting \"{0}\" - {1}", message, url);
+                Log("Tweeting \"{0}\" - {1}", message, url);
 
                 Twitter.UpdateStatus(string.Format("{0} {1}", message, url));
             }
+        }
+
+        public static void Log(string format, params object[] args)
+        {
+            Console.WriteLine("[" + DateTime.Now.ToString("R") + "] " + string.Format(format, args));
         }
     }
 }
