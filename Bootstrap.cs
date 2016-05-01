@@ -35,6 +35,15 @@ namespace SteamToTwitter
                 IsRunning = false;
             };
 
+            var loadServersTask = SteamDirectory.Initialize(0);
+            loadServersTask.Wait();
+
+            if (loadServersTask.IsFaulted)
+            {
+                Log("Error loading server list from directory: {0}", loadServersTask.Exception.Message);
+                return;
+            }
+
             var oauth = new OAuthInfo
             {
                 AccessToken = ConfigurationManager.AppSettings["token_AccessToken"],
@@ -55,6 +64,8 @@ namespace SteamToTwitter
             callbackManager.Subscribe<SteamFriends.ClanStateCallback>(OnClanState);
 
             Client.Connect();
+
+            new Timer((object state) => Client.Disconnect(), null, TimeSpan.Zero, TimeSpan.FromHours(6));
 
             while (IsRunning)
             {
@@ -114,7 +125,7 @@ namespace SteamToTwitter
 
         private static void OnLoggedOff(SteamUser.LoggedOffCallback callback)
         {
-            Log("Logged off from Steam");
+            Log("Logged off from Steam: {0}", callback.Result);
         }
 
         private static void OnAccountInfo(SteamUser.AccountInfoCallback callback)
