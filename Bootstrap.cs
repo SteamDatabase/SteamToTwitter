@@ -164,9 +164,21 @@ namespace SteamToTwitter
 
                 var url = string.Format("http://steamcommunity.com/gid/{0}/announcements/detail/{1}", callback.ClanID, announcement.ID);
 
-                Log("Tweeting \"{0}\" - {1}", message, url);
+                for (var i = 0; i < 2; i++) 
+                {
+                    try
+                    {
+                        Log("Tweeting \"{0}\" - {1}", message, url);
 
-                Twitter.UpdateStatus(string.Format("{0} {1}", message, url));
+                        Twitter.UpdateStatus(string.Format ("{0} {1}", message, url));
+
+                        break;
+                    }
+                    catch (Exception e)
+                    {
+                        Log("Exception: {0}", e.Message);
+                    }
+                }
             }
         }
 
