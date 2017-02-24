@@ -1,5 +1,6 @@
 using System;
 using System.Configuration;
+using System.IO;
 using System.Threading;
 using SteamKit2;
 using TinyTwitter;
@@ -13,6 +14,7 @@ namespace SteamToTwitter
         private static readonly SteamFriends Friends = Client.GetHandler<SteamFriends>();
         private static bool IsRunning = true;
         private static TinyTwitter.TinyTwitter Twitter;
+        private static string authCode, twoFactorAuth;
 
         public static void Main()
         {
@@ -60,6 +62,7 @@ namespace SteamToTwitter
             callbackManager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
             callbackManager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
             callbackManager.Subscribe<SteamUser.LoggedOffCallback>(OnLoggedOff);
+            callbackManager.Subscribe<SteamUser.UpdateMachineAuthCallback>(OnMachineAuth);
             callbackManager.Subscribe<SteamUser.AccountInfoCallback>(OnAccountInfo);
             callbackManager.Subscribe<SteamFriends.ClanStateCallback>(OnClanState);
 
@@ -86,8 +89,19 @@ namespace SteamToTwitter
 
             Log("Connected to Steam, logging in...");
 
+            byte[] sentryHash = null;
+
+            if (File.Exists("sentry.bin"))
+            {
+                byte[] sentryFile = File.ReadAllBytes("sentry.bin");
+                sentryHash = CryptoHelper.SHAHash(sentryFile);
+            }
+
             User.LogOn(new SteamUser.LogOnDetails
             {
+                AuthCode = authCode,
+                TwoFactorCode = twoFactorAuth,
+                SentryFileHash = sentryHash,
                 Username = ConfigurationManager.AppSettings["steam_Username"],
                 Password = ConfigurationManager.AppSettings["steam_Password"]
             });
@@ -111,6 +125,20 @@ namespace SteamToTwitter
 
         private static void OnLoggedOn(SteamUser.LoggedOnCallback callback)
         {
+            if (callback.Result == EResult.AccountLoginDeniedNeedTwoFactor)
+            {
+                Console.Write("Please enter your 2 factor auth code from your authenticator app: ");
+                twoFactorAuth = Console.ReadLine();
+                return;
+            }
+
+            if (callback.Result == EResult.AccountLogonDenied)
+            {
+                Console.Write("Please enter the auth code sent to the email at {0}: ", callback.EmailDomain);
+                authCode = Console.ReadLine();
+                return;
+            }
+
             if (callback.Result != EResult.OK)
             {
                 Log("Failed to login: {0}", callback.Result);
@@ -131,6 +159,28 @@ namespace SteamToTwitter
         private static void OnAccountInfo(SteamUser.AccountInfoCallback callback)
         {
             Friends.SetPersonaState(EPersonaState.Busy);
+        }
+
+        private static void OnMachineAuth(SteamUser.UpdateMachineAuthCallback callback)
+        {
+            Log("Updating sentryfile so that you don't need to authenticate with SteamGuard next time.");
+
+            byte[] sentryHash = CryptoHelper.SHAHash(callback.Data);
+
+            File.WriteAllBytes("sentry.bin", callback.Data);
+
+            User.SendMachineAuthResponse(new SteamUser.MachineAuthDetails
+            {
+                JobID = callback.JobID,
+                FileName = callback.FileName,
+                BytesWritten = callback.BytesToWrite,
+                FileSize = callback.Data.Length,
+                Offset = callback.Offset,
+                Result = EResult.OK,
+                LastError = 0,
+                OneTimePassword = callback.OneTimePassword,
+                SentryFileHash = sentryHash,
+            });
         }
 
         public static void OnClanState(SteamFriends.ClanStateCallback callback)
