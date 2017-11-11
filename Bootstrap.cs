@@ -36,16 +36,7 @@ namespace SteamToTwitter
 
                 IsRunning = false;
             };
-
-            var loadServersTask = SteamDirectory.Initialize(0);
-            loadServersTask.Wait();
-
-            if (loadServersTask.IsFaulted)
-            {
-                Log("Error loading server list from directory: {0}", loadServersTask.Exception.Message);
-                return;
-            }
-
+            
             var oauth = new OAuthInfo
             {
                 AccessToken = ConfigurationManager.AppSettings["token_AccessToken"],
@@ -78,15 +69,6 @@ namespace SteamToTwitter
 
         private static void OnConnected(SteamClient.ConnectedCallback callback)
         {
-            if (callback.Result != EResult.OK)
-            {
-                Log("Could not connect to Steam: {0}", callback.Result);
-
-                IsRunning = false;
-
-                return;
-            }
-
             Log("Connected to Steam, logging in...");
 
             byte[] sentryHash = null;
