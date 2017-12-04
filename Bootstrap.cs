@@ -54,7 +54,8 @@ namespace SteamToTwitter
 
             Client.Connect();
 
-            new Timer((object state) => Client.Disconnect(), null, TimeSpan.Zero, TimeSpan.FromHours(6));
+            var reconnectTime = TimeSpan.FromHours(6);
+            new Timer(state => Client.Disconnect(), null, reconnectTime, reconnectTime);
 
             while (IsRunning)
             {
