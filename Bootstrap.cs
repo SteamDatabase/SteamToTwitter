@@ -1,7 +1,7 @@
 using System;
-using System.Configuration;
 using System.IO;
 using System.Threading;
+using Newtonsoft.Json;
 using SteamKit2;
 using TinyTwitter;
 
@@ -14,6 +14,7 @@ namespace SteamToTwitter
         private static readonly SteamFriends Friends = Client.GetHandler<SteamFriends>();
         private static bool IsRunning = true;
         private static TinyTwitter.TinyTwitter Twitter;
+        private static Configuration Configuration;
         private static string authCode, twoFactorAuth;
 
         public static void Main()
@@ -36,16 +37,10 @@ namespace SteamToTwitter
 
                 IsRunning = false;
             };
-            
-            var oauth = new OAuthInfo
-            {
-                AccessToken = ConfigurationManager.AppSettings["token_AccessToken"],
-                AccessSecret = ConfigurationManager.AppSettings["token_AccessTokenSecret"],
-                ConsumerKey = ConfigurationManager.AppSettings["token_ConsumerKey"],
-                ConsumerSecret = ConfigurationManager.AppSettings["token_ConsumerSecret"]
-            };
 
-            Twitter = new TinyTwitter.TinyTwitter(oauth);
+            Configuration = JsonConvert.DeserializeObject<Configuration>(File.ReadAllText("settings.json"));
+
+            Twitter = new TinyTwitter.TinyTwitter(Configuration.Twitter);
 
             var callbackManager = new CallbackManager(Client);
 
@@ -84,8 +79,8 @@ namespace SteamToTwitter
                 AuthCode = authCode,
                 TwoFactorCode = twoFactorAuth,
                 SentryFileHash = sentryHash,
-                Username = ConfigurationManager.AppSettings["steam_Username"],
-                Password = ConfigurationManager.AppSettings["steam_Password"]
+                Username = Configuration.SteamUsername,
+                Password = Configuration.SteamPassword
             });
         }
 

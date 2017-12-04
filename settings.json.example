@@ -1,0 +1,11 @@
+{
+	"SteamUsername": "",
+	"SteamPassword": "",
+	"Twitter":
+	{
+		"ConsumerKey": "",
+		"ConsumerSecret": "",
+		"AccessToken": "",
+		"AccessTokenSecret": "",
+	}
+}
