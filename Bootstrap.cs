@@ -38,7 +38,7 @@ namespace SteamToTwitter
                 IsRunning = false;
             };
 
-            Configuration = JsonConvert.DeserializeObject<Configuration>(File.ReadAllText("settings.json"));
+            Configuration = JsonConvert.DeserializeObject<Configuration>(File.ReadAllText("settings.json"), new JsonSerializerSettings { MissingMemberHandling = MissingMemberHandling.Error });
 
             Twitter = new TinyTwitter.TinyTwitter(Configuration.Twitter);
 
