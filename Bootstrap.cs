@@ -190,7 +190,7 @@ namespace SteamToTwitter
                     message = string.Format("{0}…", message.Substring(0, 116));
                 }
 
-                var url = string.Format("http://steamcommunity.com/gid/{0}/announcements/detail/{1}", callback.ClanID, announcement.ID);
+                var url = $"http://steamcommunity.com/gid/{callback.ClanID.ConvertToUInt64()}/announcements/detail/{announcement.ID}";
 
                 for (var i = 0; i < 2; i++) 
                 {
