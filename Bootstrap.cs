@@ -3,7 +3,6 @@ using System.IO;
 using System.Threading;
 using Newtonsoft.Json;
 using SteamKit2;
-using TinyTwitter;
 
 namespace SteamToTwitter
 {
@@ -19,6 +18,8 @@ namespace SteamToTwitter
 
         public static void Main()
         {
+            Console.Title = "SteamToTwitter";
+
             Log("Starting...");
 
             Console.CancelKeyPress += delegate
@@ -55,7 +56,7 @@ namespace SteamToTwitter
             Client.Connect();
 
             var reconnectTime = TimeSpan.FromHours(6);
-            new Timer(state => Client.Disconnect(), null, reconnectTime, reconnectTime);
+            new Timer(_ => Client.Disconnect(), null, reconnectTime, reconnectTime);
 
             while (IsRunning)
             {
@@ -192,7 +193,7 @@ namespace SteamToTwitter
 
                 var url = $"http://steamcommunity.com/gid/{callback.ClanID.ConvertToUInt64()}/announcements/detail/{announcement.ID}";
 
-                for (var i = 0; i < 2; i++) 
+                for (var i = 0; i < 2; i++)
                 {
                     try
                     {
