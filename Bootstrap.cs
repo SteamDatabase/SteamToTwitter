@@ -1,7 +1,7 @@
 using System;
 using System.IO;
+using System.Text.Json;
 using System.Threading;
-using Newtonsoft.Json;
 using SteamKit2;
 
 namespace SteamToTwitter
@@ -39,7 +39,7 @@ namespace SteamToTwitter
                 IsRunning = false;
             };
 
-            Configuration = JsonConvert.DeserializeObject<Configuration>(File.ReadAllText("settings.json"), new JsonSerializerSettings { MissingMemberHandling = MissingMemberHandling.Error });
+            Configuration = JsonSerializer.Deserialize<Configuration>(File.ReadAllText("settings.json"));
 
             Twitter = new TinyTwitter.TinyTwitter(Configuration.Twitter);
 

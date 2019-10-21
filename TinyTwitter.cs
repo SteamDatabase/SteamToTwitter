@@ -35,7 +35,7 @@ namespace TinyTwitter
 
 		#region RequestBuilder
 
-		public class RequestBuilder
+		private class RequestBuilder
 		{
 			private const string VERSION = "1.0";
 			private const string SIGNATURE_METHOD = "HMAC-SHA1";
@@ -88,11 +88,9 @@ namespace TinyTwitter
 
 				using (var stream = response.GetResponseStream())
 				{
-					using (var reader = new StreamReader(stream))
-					{
-						content = reader.ReadToEnd();
-					}
-				}
+                    using var reader = new StreamReader(stream);
+                    content = reader.ReadToEnd();
+                }
 
 				request.Abort();
 
@@ -105,9 +103,9 @@ namespace TinyTwitter
 					return;
 
 				var requestBody = Encoding.ASCII.GetBytes(GetCustomParametersString());
-				using (var stream = request.GetRequestStream())
-					stream.Write(requestBody, 0, requestBody.Length);
-			}
+                using var stream = request.GetRequestStream();
+                stream.Write(requestBody, 0, requestBody.Length);
+            }
 
 			private string GetRequestUrl()
 			{
@@ -122,7 +120,7 @@ namespace TinyTwitter
 				return customParameters.Select(x => string.Format("{0}={1}", x.Key, x.Value)).Join("&");
 			}
 
-			private string GenerateAuthorizationHeaderValue(IEnumerable<KeyValuePair<string, string>> parameters, string signature)
+			private static string GenerateAuthorizationHeaderValue(IEnumerable<KeyValuePair<string, string>> parameters, string signature)
 			{
 				return new StringBuilder("OAuth ")
 					.Append(parameters.Concat(new KeyValuePair<string, string>("oauth_signature", signature))
