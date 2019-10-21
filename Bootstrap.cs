@@ -199,7 +199,7 @@ namespace SteamToTwitter
                     {
                         Log("Tweeting \"{0}\" - {1}", message, url);
 
-                        Twitter.UpdateStatus(string.Format ("{0} {1}", message, url));
+                        Twitter.UpdateStatus(string.Format("{0} {1}", message, url));
 
                         break;
                     }
