@@ -11,6 +11,7 @@ namespace SteamToTwitter
         private static readonly SteamClient Client = new SteamClient();
         private static readonly SteamUser User = Client.GetHandler<SteamUser>();
         private static readonly SteamFriends Friends = Client.GetHandler<SteamFriends>();
+        private static Timer ReconnectTimer;
         private static bool IsRunning = true;
         private static TinyTwitter.TinyTwitter Twitter;
         private static Configuration Configuration;
@@ -56,7 +57,7 @@ namespace SteamToTwitter
             Client.Connect();
 
             var reconnectTime = TimeSpan.FromHours(6);
-            new Timer(_ => Client.Disconnect(), null, reconnectTime, reconnectTime);
+            ReconnectTimer = new Timer(_ => Client.Disconnect(), null, reconnectTime, reconnectTime);
 
             while (IsRunning)
             {
@@ -72,7 +73,7 @@ namespace SteamToTwitter
 
             if (File.Exists("sentry.bin"))
             {
-                byte[] sentryFile = File.ReadAllBytes("sentry.bin");
+                var sentryFile = File.ReadAllBytes("sentry.bin");
                 sentryHash = CryptoHelper.SHAHash(sentryFile);
             }
 
@@ -144,7 +145,7 @@ namespace SteamToTwitter
         {
             Log("Updating sentryfile so that you don't need to authenticate with SteamGuard next time.");
 
-            byte[] sentryHash = CryptoHelper.SHAHash(callback.Data);
+            var sentryHash = CryptoHelper.SHAHash(callback.Data);
 
             File.WriteAllBytes("sentry.bin", callback.Data);
 
@@ -182,13 +183,13 @@ namespace SteamToTwitter
 
                 if (!string.IsNullOrEmpty(groupName) && !announcement.Headline.Contains(groupName.Replace("Steam", string.Empty).Trim()))
                 {
-                    message = string.Format("{0}:\n{1}", groupName, announcement.Headline);
+                    message = $"{groupName}:\n{announcement.Headline}";
                 }
 
                 // 117 is a magical tweet length number
                 if (message.Length > 117)
                 {
-                    message = string.Format("{0}…", message.Substring(0, 116));
+                    message = $"{message.Substring(0, 116)}…";
                 }
 
                 var url = $"https://steamcommunity.com/gid/{callback.ClanID.ConvertToUInt64()}/announcements/detail/{announcement.ID}";
@@ -199,7 +200,7 @@ namespace SteamToTwitter
                     {
                         Log("Tweeting \"{0}\" - {1}", message, url);
 
-                        Twitter.UpdateStatus(string.Format("{0} {1}", message, url));
+                        Twitter.UpdateStatus($"{message} {url}");
 
                         break;
                     }

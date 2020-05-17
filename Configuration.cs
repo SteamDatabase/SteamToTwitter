@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace SteamToTwitter
+﻿namespace SteamToTwitter
 {
     internal class Configuration
     {
