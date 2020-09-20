@@ -183,7 +183,7 @@ namespace SteamToTwitter
 
                 if (!string.IsNullOrEmpty(groupName) && !announcement.Headline.Contains(groupName.Replace("Steam", string.Empty).Trim()))
                 {
-                    message = $"{groupName}:\n{announcement.Headline}";
+                    message = $"{announcement.Headline} ({groupName})";
                 }
 
                 // 240 max tweet length, minus 23 characters for the t.co link
