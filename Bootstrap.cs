@@ -186,10 +186,10 @@ namespace SteamToTwitter
                     message = $"{groupName}:\n{announcement.Headline}";
                 }
 
-                // 117 is a magical tweet length number
-                if (message.Length > 117)
+                // 240 max tweet length, minus 23 characters for the t.co link
+                if (message.Length > 217)
                 {
-                    message = $"{message.Substring(0, 116)}…";
+                    message = $"{message.Substring(0, 216)}…";
                 }
 
                 var url = $"https://steamcommunity.com/gid/{callback.ClanID.ConvertToUInt64()}/announcements/detail/{announcement.ID}";
