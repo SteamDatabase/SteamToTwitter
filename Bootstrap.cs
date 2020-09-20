@@ -121,19 +121,19 @@ namespace SteamToTwitter
 
             if (callback.Result != EResult.OK)
             {
-                Log("Failed to login: {0}", callback.Result);
+                Log($"Failed to login: {callback.Result}");
 
                 Thread.Sleep(TimeSpan.FromSeconds(2));
 
                 return;
             }
 
-            Log("Logged in, current valve time is {0} UTC", callback.ServerTime.ToString());
+            Log($"Logged in, current valve time is {callback.ServerTime} UTC");
         }
 
         private static void OnLoggedOff(SteamUser.LoggedOffCallback callback)
         {
-            Log("Logged off from Steam: {0}", callback.Result);
+            Log($"Logged off from Steam: {callback.Result}");
         }
 
         private static void OnAccountInfo(SteamUser.AccountInfoCallback callback)
@@ -198,7 +198,7 @@ namespace SteamToTwitter
                 {
                     try
                     {
-                        Log("Tweeting \"{0}\" - {1}", message, url);
+                        Log($"Tweeting \"{message}\" - {url}");
 
                         Twitter.UpdateStatus($"{message} {url}");
 
@@ -206,15 +206,15 @@ namespace SteamToTwitter
                     }
                     catch (Exception e)
                     {
-                        Log("Exception: {0}", e.Message);
+                        Log($"Exception: {e.Message}");
                     }
                 }
             }
         }
 
-        public static void Log(string format, params object[] args)
+        public static void Log(string format)
         {
-            Console.WriteLine("[" + DateTime.Now.ToString("R") + "] " + string.Format(format, args));
+            Console.WriteLine($"[{DateTime.Now:R}] {format}");
         }
     }
 }
